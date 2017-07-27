@@ -11,6 +11,7 @@ import os
 import pymssql
 import _mssql
 from decimal import *
+import statistics as stats
 #------------- Finalizan Imports. -------------#
 #---
 #------------- Inicia Declaración de Variables Globales. -------------#
@@ -30,6 +31,9 @@ connection = pymssql.connect(server='66.232.22.196',
 OPTIONS = ['AIRBNB','BOOKING','EXPEDIA','APARSOL','PERSONALMENTE','MIRAI','HOMEAWAY','TELEFONO TFNO','EMAIL','CORREO','BUDGETPLACES','DIRECTO']
 today = (datetime.datetime.now()).date()
 RESULTADO = []
+A_LAST_RES = []
+B_LAST_RES = []
+E_LAST_RES = []
 BOOKING = []
 AIRBNB = []
 EXPEDIA = []
@@ -54,6 +58,60 @@ def monthdelta(d1, d2):
         else:
             break
     return delta
+
+#--- Se obtiene la fecha del primer registro
+def get_init_date(PORTAL):
+    f_date = PORTAL[0][1].date()
+    ini_date = []
+    ini_date.append(f_date.month)
+    ini_date.append(f_date.year)
+    #---
+    return ini_date
+#----  Se saca el mes y el año de un registro
+def get_data_month(PORTAL, month, year):
+    #---
+    datos = []   
+    #---    
+    #---   
+    for d_portal in PORTAL:
+        #--- 
+        begin = d_portal[1].date()            
+        #---                
+        if ((begin.month == month) and (begin.year == year)):
+            #---
+            datos.append(d_portal)
+    #---
+    return datos
+#--- se saca el precio por noche
+def get_prom_price(p_data):
+    temp_resul = []
+    for t_precio in p_data:
+        days = (t_precio[2].date() - t_precio[1].date())
+        days = days.days
+        if (days == 0):
+            days = 1
+        temp_resul.append((t_precio[5])/days)
+    #---
+    return temp_resul
+#--- Se calcula el numero de días entres dos fechas
+def get_date_diff(d_data, end, init):
+    temp_resul = []
+    for t_date in d_data:
+        days = (t_date[end].date() - t_date[init].date())
+        days = days.days
+        if (days == 0):
+            days = 1
+        temp_resul.append(days)
+    #---
+    return temp_resul
+#--- Se genera una lista con los datos de un campo especifico
+def get_one_field_data(data, index):
+    temp_resul = []
+    for t_data in data:
+        temp_resul.append(t_data[index])
+    #---
+    return temp_resul
+#---
 #---  Calculara Mediana      
 def get_mediana(data):
     if (len(data) == 4):
@@ -63,7 +121,11 @@ def get_mediana(data):
     mediana = None
     n = len(dOrder)
     if (n <= 3):
-        return data[0]        
+        s_data = sum(data)
+        media = Decimal(s_data) * Decimal(1) / Decimal(n)
+        media = round(media,2)
+        #---
+        return media        
     else:        
         middle = n/2
         # codigo para calcular la mediana
@@ -73,6 +135,7 @@ def get_mediana(data):
             mediana = dOrder[int(middle) + 1] * 1  
 
         return mediana
+#---
 #--- Calcular Media
 def get_media(data):
     # codigo para calcular la media aritmetica
@@ -83,6 +146,7 @@ def get_media(data):
     media = round(media,2)
     #---
     return media
+#---
 #--- Calcular Moda
 def get_moda(data):
     # codigo para calcular la moda
@@ -99,12 +163,13 @@ def get_moda(data):
             moda.append(i)
     #---
     return moda
+#---
 #------------- Inicia Consulta a BD para Obtener Datos Almacenados. -------------#
 try:
     #---
     with connection.cursor() as cursor:
         #--- Consulta especifica
-        sql = ("SELECT r.FECHA_RESERVA, r.FECHA_ENTRADA, r.FECHA_SALIDA, r.NO_PERSONAS, r.NO_NIÑOS, r.PRECIO, r.PROCEDENCIA, s.nombre, r.ESTADO FROM AV_RESERVAS r INNER JOIN bmsubcon s ON r.AGENCIA = s.numero WHERE r.ESTADO = 'FINALIZADA' OR r.ESTADO = 'EN CURSO' OR r.ESTADO = 'ACTIVA'")        
+        sql = ("SELECT r.FECHA_RESERVA, r.FECHA_ENTRADA, r.FECHA_SALIDA, r.NO_PERSONAS, r.NO_NIÑOS, r.PRECIO, r.PROCEDENCIA, s.nombre, r.ESTADO FROM AV_RESERVAS r INNER JOIN bmsubcon s ON r.AGENCIA = s.numero WHERE r.ESTADO = 'FINALIZADA' OR r.ESTADO = 'EN CURSO' OR r.ESTADO = 'ACTIVA' ORDER BY r.FECHA_ENTRADA ASC")        
         cursor.execute(sql)
         RESULTADO = cursor.fetchall()
         #---
@@ -113,7 +178,7 @@ try:
 #---
 except _mssql.MssqlDatabaseException as e:
     print('Error #1 -> Número de error: ',e.number,' - ','Severidad: ', e.severity)
-
+#---
 for r_data in RESULTADO:
     if ((str.lower(OPTIONS[0]) in str.lower(r_data[6])) or (str.lower(OPTIONS[0]) in str.lower(r_data[7]))):
         if (r_data[5] != None): #<--- Si no hay un precio definido, no se toma en concideracion la consulta
@@ -130,190 +195,270 @@ print('airbnbn',len(AIRBNB))
 print('booking',len(BOOKING))
 print('expedia',len(EXPEDIA))
 
+init_airbnb = (AIRBNB[0][1].date())
+init_booking = (BOOKING[0][1].date())
+init_expedia = (EXPEDIA[0][1].date())
 
-end_date = add_months(AIRBNB[0][1].date(),1)
+print('Aibnb ',init_airbnb)
+print('booking ',init_booking)
+print('expedia ',init_expedia)
+
 month = BOOKING[0][1].date()
 month = month.month
-year = end_date.year
+year = init_booking.year
 
-#---
-def get_init_date(PORTAL):
-    f_date = PORTAL[0][1].date()
-    ini_date = []
-    ini_date.append(f_date.month)
-    ini_date.append(f_date.year)
-    #---
-    return ini_date
-#----    
-def get_data_month(PORTAL, month, year):
-    #---
-    datos = []   
-    #---    
-    #---   
-    for d_portal in PORTAL:
-        #--- 
-        begin = d_portal[1].date()            
-        #---                
-        if ((begin.month == month) and (begin.year == year)):
-            #---
-            datos.append(d_portal)
-    #---
-    return datos
-#---
-def get_prom_price(p_data):
-    temp_resul = []
-    for t_precio in p_data:
-        days = (t_precio[2].date() - t_precio[1].date())
-        days = days.days
-        if (days == 0):
-            days = 1
-        temp_resul.append((t_precio[5])/days)
-    #---
-    return temp_resul
-#---
-def get_date_diff(d_data):
-    temp_resul = []
-    for t_date in d_data:
-        days = (t_date[2].date() - t_date[1].date())
-        days = days.days
-        if (days == 0):
-            days = 1
-        temp_resul.append(days)
-    #---
-    return temp_resul
-#---
-print('Mes: ',month,' - Año: ', year)
-iteraciones = monthdelta(end_date,today)
-print('Resta Meses: ', iteraciones)
 #----
-i = 0
-#---- Mes y Año de Inicio
-a_dates = get_init_date(AIRBNB)
-b_dates = get_init_date(BOOKING)
-e_dates = get_init_date(EXPEDIA)   
-while (i < iteraciones):
-    
-    a_data = get_data_month(AIRBNB, a_dates[0], a_dates[1])   
-    b_data = get_data_month(BOOKING, b_dates[0], b_dates[1]) 
-    e_data = get_data_month(EXPEDIA, e_dates[0], e_dates[1])       
-    #------------------- PRECIO
-    #--- Media.
-    print('AirBnB ---- Mes: ',a_dates[0],' - Año: ', a_dates[1])
-    print('Booking ---- Mes: ',b_dates[0],' - Año: ', b_dates[1])
-    print('Expedia ---- Mes: ',e_dates[0],' - Año: ', e_dates[1])
-    #---
-    if (len(a_data) != 0):
-        a_precio = get_prom_price(a_data)
-        a_media = get_media(a_precio)
-        print('AirBnB Precio Medio = ',a_media)
-    #---
-    else:
-        print('AirBnB Precio Medio = ',0)
-    #---
-    if (len(b_data) != 0):
-        b_precio = get_prom_price(b_data)
-        b_media = get_media(b_precio)
-        print('Booking Precio Medio = ',b_media)
-    #---
-    else:
-        print('Booking Precio Medio = ',0)
-    #---
-    if (len(e_data) != 0):
-        e_precio = get_prom_price(e_data)
-        e_media = get_media(e_precio)
-        print('Expedia Precio Medio = ',e_media)
-    #---
-    else:
-         print('Expedia Precio Medio = ',0)
-    #---                    
-    #------------------- RESERVA    
-    #---
-    if (len(a_data) != 0):
-        #--- Media.               
-        a_reserv_data = get_date_diff(a_data)
-        print(a_reserv_data)
-        a_media_reserva = get_media(a_reserv_data)
-        print('AirBnB Reserva Medio = ',a_media_reserva)
-        #--- Moda.
-        a_moda_reserva = get_moda(a_reserv_data)
-        print('AirBnB Reserva Moda = ',a_moda_reserva)
-        #--- Mediana.
-        a_mediana_reserva = get_mediana(a_reserv_data)
-        print('AirBnB Reserva Mediana = ',a_mediana_reserva)
-    #---
-    else:
-        #--- Media.
-        print('AirBnB Reserva Medio = ',0)
-        #--- Moda.
-        print('AirBnB Reserva Moda = ',0)
-        #--- Mediana.
-        print('AirBnB Reserva Mediana = ',0)
-    #---
-    if (len(b_data) != 0):
-        #--- Media.
-        b_reserv_data = get_date_diff(b_data)
-        print(b_reserv_data)
-        b_media_reserva = get_media(b_reserv_data)
-        print('Booking Reserva Medio = ',b_media_reserva)
-        #--- Moda.
-        b_moda_reserva = get_moda(b_reserv_data)
-        print('Booking Reserva Moda = ',b_moda_reserva)
-        #--- Mediana.
-        b_mediana_reserva = get_mediana(b_reserv_data)
-        print('Booking Reserva Mediana = ',b_mediana_reserva)
-    #---
-    else:
-        #--- Media.
-        print('Booking Reserva Medio = ',0)
-        #--- Moda.
-        print('Booking Reserva Moda = ',0)
-        #--- Mediana.
-        print('Booking Reserva Mediana = ',0)
-    #---
-    if (len(e_data) != 0):
-        #--- Media.
-        e_reserv_data = get_date_diff(e_data)
-        print(e_reserv_data)
-        e_media_reserva = get_media(e_reserv_data)
-        print('Expedia Reserva Medio = ',e_media_reserva)
-        #--- Moda.
-        e_moda_reserva = get_moda(e_reserv_data)
-        print('Expedia Reserva Moda = ',e_moda_reserva)
-        #--- Mediana.
-        e_mediana_reserva = get_mediana(e_reserv_data)
-        print('Expedia Reserva Mediana = ',e_mediana_reserva)
-    #---
-    else:
-        #--- Media.
-        print('Expedia Reserva Medio = ',0)
-        #--- Moda.
-        print('Expedia Reserva Moda = ',0)
-        #--- Mediana.
-        print('Expedia Reserva Mediana = ',0)
-    #---    
 
-    #-------------------
-    #--- Media.
+#------------- Inicia Consulta a BD para Obtener Datos Almacenados. -------------#
+def get_last_regis(id_port):
+    try:
+        #---
+        last_result = []
+        with connection.cursor() as cursor:
+            #--- Consulta especifica
+            sql = "SELECT TOP 1 * FROM SCR_PORTALES_DETALLE WHERE ID_PORTAL = %s ORDER BY [ID] DESC "
+            cursor.execute(sql, id_port)
+            last_result = cursor.fetchone()
+            #---
+            #print(PORTAL)
+            print('Correcto -> Extracción de los datos del "portal" a usar.')
+    #---
+    except _mssql.MssqlDatabaseException as e:
+        print('Error -> Número de error: ',e.number,' - ','Severidad: ', e.severity)
+    #---
+    print(last_result)
+    return last_result
 
-    #--- Moda.
+    #---
+#---
+def get_portal_data(ID,PORTAL,nombre):
+    #---
+    i = 0
+    #--- 
+    #---- Mes y Año de Inicio
+    dates = None
+    #---
+    actual_month = (int(today.month) - 1)
+    #---
+    for i in range(len(PORTAL)):
+        #---
+        l_regis = get_last_regis(ID)
+        NUM_RESERVA = None 
+        PRECIO_MEDIA = None
+        RESERVA_MEDIA = None
+        RESERVA_MODA = []
+        RESERVA_MEDIANA = None 
+        RESERVA_DESV = None
+        ANT_RESERVA_MEDIA = None
+        ANT_RESERVA_MODA = []
+        ANT_RESERVA_MEDIANA = None
+        ANT_RESERVA_DES = None
+        ADULTOS_MEDIA = None
+        ADULTOS_MODA = []
+        NIÑOS_MEDIA = None
+        NIÑOS_MODA = []
+        #---
+        if (l_regis == None):
+            #---
+            dates = get_init_date(PORTAL)
+            print('No hay registros anteriores')
+        #---
+        elif (l_regis[2] == actual_month and l_regis[3] == today.year):
+            break
+        #---
+        elif (l_regis[3] < today.year):
+            if (l_regis[2] == 12):
+                dates[0] = 1
+                dates[1] = l_regis[3] + 1
+            else:                
+                dates[0] = l_regis[2] + 1
+                dates[1] = l_regis[3]
+        #---
+        elif (l_regis[2] < actual_month and l_regis[3] == today.year):
+            if (l_regis[2] == 12):
+                dates[0] = 1
+                dates[1] = l_regis[3] + 1
+            else:                
+                dates[0] = l_regis[2] + 1
+                dates[1] = l_regis[3]
+            
+            
+        #---     
+        data = get_data_month(PORTAL, dates[0], dates[1])       
+        #------------------- PRECIO
+        #--- Media.
+        print('-------------------------------------------------')
+        print(nombre, ' ---- Mes: ',dates[0],' - Año: ', dates[1])
+        #---
+        print('-------------NUM RESERVAS----------------')
+        #---
+        NUM_RESERVA = len(data)
+        print('N Reservas ',nombre,' = ', NUM_RESERVA)
+        #---
+        print('-------------PRECIO----------------')
+        #---
+        if (len(data) != 0):
+            precio = get_prom_price(data)
+            PRECIO_MEDIA = round(stats.mean(precio),2)
+            print(nombre,' Precio Medio = ', PRECIO_MEDIA)
+        #---    
+        else:
+            print(nombre,' Precio Medio = ',0)
+        #---
+        print('----')
+        #---                    
+        #------------------- RESERVA    
+        #---
+        print('-------------RESERVA----------------')
+        #---
+        if (len(data) != 0):
+            #--- Media.               
+            reserv_data = get_date_diff(data, 2, 1)
+            RESERVA_MEDIA = round(stats.mean(reserv_data), 2)
+            print(nombre, ' Reserva Medio = ', RESERVA_MEDIA)
+            #--- Moda.
+            RESERVA_MODA = get_moda(reserv_data)
+            print(nombre, ' Reserva Moda = ', RESERVA_MODA)
+            if (len(RESERVA_MODA) == 1):
+                RESERVA_MODA.append(None)                
+            #--- Mediana.
+            RESERVA_MEDIANA = round(stats.median(reserv_data), 2)
+            print(nombre, ' Reserva Mediana = ', RESERVA_MEDIANA)
+            #--- Desviacion Standar.
+            RESERVA_DESV = round(stats.pstdev(reserv_data), 2)
+            print(nombre, ' Reserva Desviación Standard = ', RESERVA_DESV)
+        #---
+        else:
+            #--- Media.
+            print(nombre, ' Reserva Medio = ', 0)
+            #--- Moda.
+            print(nombre, ' Reserva Moda = ', 0)
+            RESERVA_MODA.append(None)
+            RESERVA_MODA.append(None)
+            #--- Mediana.
+            print(nombre, ' Reserva Mediana = ', 0)
+            #--- Desviacion Standar..
+            print(nombre, ' Reserva Desviación Standard = ', 0)
+        #---
+        print('----')
+        #---
+       
 
-    #--- Mediana.
-    if (a_dates[0] == 12):
-        a_dates[0] = 1
-        a_dates[1] = a_dates[1] + 1
-    else:
-        a_dates[0] = a_dates[0] + 1
-    #---
-    if (b_dates[0] == 12):
-        b_dates[0] = 1
-        b_dates[1] = b_dates[1] + 1
-    else:
-        b_dates[0] = b_dates[0] + 1
-    #---
-    if (e_dates[0] == 12):
-        e_dates[0] = 1
-        e_dates[1] = e_dates[1] + 1
-    else:
-        e_dates[0] = e_dates[0] + 1
-    #---
-    i += 1
+        #------------------- ANTICIPACION RESERVA
+        #---
+        print('-------------ANTICIPACION RESERVA----------------')
+        #---
+        if (len(data) != 0):
+            #--- Media.               
+            ant_reserv_data = get_date_diff(data, 1, 0)
+            ANT_RESERVA_MEDIA = round(stats.mean(ant_reserv_data), 2)
+            print(nombre, ' Antelación Reserva Medio = ', ANT_RESERVA_MEDIA)
+            #--- Moda.
+            ANT_RESERVA_MODA = get_moda(ant_reserv_data)
+            print(nombre, ' Antelación Reserva Moda = ', ANT_RESERVA_MODA)
+            if (len(ANT_RESERVA_MODA) == 1):
+                ANT_RESERVA_MODA.append(None)   
+            #--- Mediana.
+            ANT_RESERVA_MEDIANA = round(stats.median(ant_reserv_data), 2)
+            print(nombre, ' Antelación Reserva Mediana = ', ANT_RESERVA_MEDIANA)
+            #--- Desviacion Standar.
+            ANT_RESERVA_DES = round(stats.pstdev(ant_reserv_data), 2)
+            print(nombre, ' Reserva Desviación Standard = ', ANT_RESERVA_DES)
+        #---
+        else:
+            #--- Media.
+            print(nombre, ' Antelación Reserva Medio = ', 0)
+            #--- Moda.
+            print(nombre, ' Antelación Reserva Moda = ', 0)
+            ANT_RESERVA_MODA.append(None)
+            ANT_RESERVA_MODA.append(None)
+            #--- Mediana.
+            print(nombre, ' Antelación Reserva Mediana = ', 0)
+            #--- Desviacion Standar..
+            print(nombre, ' Reserva Desviación Standard = ', 0)
+        #---
+        print('----')
+       
+        #---
+        #------------------- ADULTOS 
+        #---
+        print('-------------ADULTOS----------------')
+        #---
+        if (len(data) != 0):
+            #--- Media.               
+            adult_data = get_one_field_data(data, 3)
+            ADULTOS_MEDIA = round(stats.mean(adult_data), 2)
+            print(nombre, ' Adultos Medio = ',ADULTOS_MEDIA)
+            #--- Moda.
+            ADULTOS_MODA = get_moda(adult_data)
+            print(nombre, ' Adultos Moda = ',ADULTOS_MODA)
+            if (len(ADULTOS_MODA) == 1):
+                ADULTOS_MODA.append(None)  
+        #---
+        else:
+            #--- Media.
+            print(nombre, ' Adultos Medio = ',0)
+            #--- Moda.
+            print(nombre, ' Adultos Moda = ',0)
+            ADULTOS_MODA.append(None)
+            ADULTOS_MODA.append(None)
+        #---
+        print('----')
+     
+        #---
+        #------------------- NIÑOS 
+        #---
+        print('-------------NIÑOS----------------')
+        #---
+        if (len(data) != 0):
+            #--- Media.               
+            child_data = get_one_field_data(data, 4)
+            NIÑOS_MEDIA = round(stats.mean(child_data), 2)
+            print(nombre, ' Niños Medio = ', NIÑOS_MEDIA)
+            #--- Moda.
+            NIÑOS_MODA = get_moda(child_data)
+            print(nombre, ' Niños Moda = ',NIÑOS_MODA)
+            if (len(NIÑOS_MODA) == 1):
+                NIÑOS_MODA.append(None)
+        #---
+        else:
+            #--- Media.
+            print(nombre, ' Niños Medio = ',0)
+            #--- Moda.
+            print(nombre, ' Niños Moda = ',0)
+            NIÑOS_MODA.append(None)
+            NIÑOS_MODA.append(None)
+        #---
+        print('----')
+       
+        #---
+        #--- Inicia la conección
+        try:
+            #---
+            with connection.cursor() as cursor:
+                #--- Consulta especifica
+                sql = "INSERT INTO SCR_PORTALES_DETALLE (ID_PORTAL,MES,AÑO,NUM_RESERVA,PRECIO_MEDIA,RESERVA_MEDIA,RESERVA_MODA_1,RESERVA_MODA_2,RESERVA_MEDIANA,RESERVA_DESV,ANT_RESERVA_MEDIA,ANT_RESERVA_MODA_1,ANT_RESERVA_MODA_2,ANT_RESERVA_MEDIANA,ANT_RESERVA_DES,ADULTOS_MEDIA,ADULTOS_MODA_1,ADULTOS_MODA_2,NIÑOS_MEDIA,NIÑOS_MODA) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)" 
+                cursor.execute(sql, (ID,int(dates[0]),int(dates[1]),NUM_RESERVA,PRECIO_MEDIA,RESERVA_MEDIA,RESERVA_MODA[0],RESERVA_MODA[1],RESERVA_MEDIANA,RESERVA_DESV,ANT_RESERVA_MEDIA,ANT_RESERVA_MODA[0],ANT_RESERVA_MODA[1],ANT_RESERVA_MEDIANA,ANT_RESERVA_DES,ADULTOS_MEDIA,ADULTOS_MODA[0],ADULTOS_MODA[0],NIÑOS_MEDIA,NIÑOS_MODA[0]))                
+                #---                            
+                print('Correcto -> Registro Correcto del Log.')
+                connection.commit()
+        #---
+        except _mssql.MssqlDatabaseException as e:
+            print('Error -> Número de error: ',e.number,' - ','Severidad: ', e.severity) 
+       
+        
+
+    return True
+
+get_data_airbnb = get_portal_data(1,AIRBNB,'AirBnB')
+if (get_data_airbnb == True):
+    print('Datos de Airbnb')
+    time.sleep(10)
+get_data_booking = get_portal_data(2,BOOKING,'Booking')
+if (get_data_booking == True):
+    print('Datos de Booking')
+    time.sleep(10)
+get_data_expedia = get_portal_data(3,EXPEDIA,'Expedia')
+if (get_data_expedia == True):
+    print('Datos de Expedia')
+    time.sleep(10)
