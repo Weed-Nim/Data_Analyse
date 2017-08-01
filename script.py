@@ -304,12 +304,11 @@ def get_portal_data(ID,PORTAL,nombre,days_verif):
             end_ite = False 
             if (l_regis[2] == 12):
                 dates.append(1)
-                dates.append[(l_regis[3] + 1)
+                dates.append(l_regis[3] + 1)
             else:                
                 dates.append(l_regis[2] + 1)
                 dates.append(l_regis[3])
-            
-            
+                        
         #--
         if (end_ite == True):
             break     
