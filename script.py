@@ -294,20 +294,20 @@ def get_portal_data(ID,PORTAL,nombre,days_verif):
         elif (l_regis[3] < today.year):
             end_ite = False 
             if (l_regis[2] == 12):
-                dates[0] = 1
-                dates[1] = l_regis[3] + 1
+                dates.append(1)
+                dates.append(l_regis[3] + 1)
             else:                
-                dates[0] = l_regis[2] + 1
-                dates[1] = l_regis[3]
+                dates.append( l_regis[2] + 1)
+                dates.append(l_regis[3])
         #---
         elif (l_regis[2] < actual_month and l_regis[3] == today.year):
             end_ite = False 
             if (l_regis[2] == 12):
-                dates[0] = 1
-                dates[1] = l_regis[3] + 1
+                dates.append(1)
+                dates.append[(l_regis[3] + 1)
             else:                
-                dates[0] = l_regis[2] + 1
-                dates[1] = l_regis[3]
+                dates.append(l_regis[2] + 1)
+                dates.append(l_regis[3])
             
             
         #--
