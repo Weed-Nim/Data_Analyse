@@ -26,18 +26,15 @@ connection = pymssql.connect(server='66.232.22.196',
                            )
 #---
 #------------- Finaliza Configuración de BD. -------------#
-
-
-OPTIONS = []
-today = (datetime.datetime.now()).date()
-RESULTADO = []
-RESULT_MODIF = []
-TEMP_MODIF = []
-A_LAST_RES = []
-B_LAST_RES = []
-E_LAST_RES = []
-MONTH_DATA_UPD = []
-
+#--- Variables 
+OPTIONS = [] #<--- Se almacenan los sitios que se analizaran, Ex: Airbnb, Booking, Expedia,etc.
+today = (datetime.datetime.now()).date() #<--- Fecha de hoy.
+RESULTADO = [] #<--- Lista donde se almacenan los datos de la tabla AV_Reservas
+TEMP_MODIF = []  #<--- Lista donde se almacenan el historial de modificaciones hechas a las reservas.
+RESULT_MODIF = [] #<--- Lista donde se filtraran las modificaciones de interes.
+MONTH_DATA_UPD = [] #<--- Lista donde se almacena los datos de la ultima modificación del mes.
+#----
+#------------- Inicio de Funciones. -------------#
 #--- Suma Meses a una Fecha
 def add_months(sourcedate,months):
     #---
@@ -46,7 +43,8 @@ def add_months(sourcedate,months):
     month = month % 12 + 1
     day = min(sourcedate.day,calendar.monthrange(year,month)[1])
     #---
-    return datetime.date(year,month,day)
+    return datetime.date(year,month,day) #<--- Devuelve una fecha.
+#---
 #--- Resta de meses
 def monthdelta(d1, d2):
     delta = 0
@@ -57,17 +55,18 @@ def monthdelta(d1, d2):
             delta += 1
         else:
             break
-    return delta
-
-#--- Se obtiene la fecha del primer registro
+    return delta  #<--- Devuelve la la diferencia entre dos meses.
+#---
+#--- Se obtiene la fecha del primer registro, de un portal en especifico.
 def get_init_date(PORTAL):
     f_date = PORTAL[0][2].date()
     ini_date = []
     ini_date.append(f_date.month)
     ini_date.append(f_date.year)
     #---
-    return ini_date
-#----  Se saca el mes y el año de un registro
+    return ini_date #<--- Devuelve anio y mes del primer registro de un portal.
+#---
+#----  Se saca el mes y el año de un registro.
 def get_data_month(PORTAL, month, year):
     #---
     datos = []   
@@ -81,8 +80,9 @@ def get_data_month(PORTAL, month, year):
             #---
             datos.append(d_portal)
     #---
-    return datos
-#--- se saca el precio por noche
+    return datos #<--- Devuelve una lista con el anio y mes.
+#---
+#--- se saca el precio por noche.
 def get_prom_price(p_data):
     temp_resul = []
     for t_precio in p_data:
@@ -92,8 +92,9 @@ def get_prom_price(p_data):
             days = 1
         temp_resul.append((t_precio[6])/days)
     #---
-    return temp_resul
-#--- Se calcula el numero de días entres dos fechas
+    return temp_resul #<--- Devuelve una lista con el precio por noche de la reserva.
+#---
+#--- Se calcula el numero de días entres dos fechas.
 def get_date_diff(d_data, end, init):
     temp_resul = []
     for t_date in d_data:
@@ -103,8 +104,9 @@ def get_date_diff(d_data, end, init):
             days = 1
         temp_resul.append(days)
     #---
-    return temp_resul
-#--- Se genera una lista con los datos de un campo especifico
+    return temp_resul #<--- Devuelve una lista con los días de diferencia entre las fechas especificadas.
+#---
+#--- Se genera una lista con los datos de un campo especifico.
 def get_one_field_data(data, index):
     temp_resul = []
     for t_data in data:
@@ -113,9 +115,9 @@ def get_one_field_data(data, index):
         else:
             temp_resul.append(t_data[index])
     #---
-    return temp_resul
+    return temp_resul #<--- Devuelve una lista con todos los datos de un campo en especifico.
 #---
-#--- Calcular Moda
+#--- Calcular Moda.
 def get_moda(data):
     # codigo para calcular la moda
     repetir = 0                                                                         
@@ -130,57 +132,73 @@ def get_moda(data):
         if aparece == repetir and i not in moda:                                   
             moda.append(i)
     #---
-    return moda
+    return moda #<--- Devuelve una lista con los datos mas repetidos.
+#----
+#------------- Fin de  Funciones. -------------#
 #---
 #------------- Inicia Consulta a BD para Obtener Datos Almacenados. -------------#
 try:
     #---
     with connection.cursor() as cursor:
-        #---
+        #--- Extraccion de los datos de los portales a analizar de SCR_PORTALES
         sql = "SELECT ID_PORTAL, NOMBRE, URL, DIAS_VERIFICACION FROM SCR_PORTALES WHERE ESTADIST_CALC = 1"
         cursor.execute(sql)
-        SETTING = cursor.fetchall()
-        #--- Consulta especifica
+        SETTING = cursor.fetchall() #<--- Lista con los portales activos.
+        #---
+        #--- Extracción de los datos de las reservas a analizar.
         sql_1 = ("SELECT r.ID_RESERVA, r.FECHA_RESERVA, r.FECHA_ENTRADA, r.FECHA_SALIDA, r.NO_PERSONAS, r.NO_NIÑOS, r.PRECIO, r.PROCEDENCIA, s.nombre, r.ESTADO, r.PRECIOextra, r.COMISION, r.GASTOENERGIABAS, r.GASTOLIMREAL FROM AV_RESERVAS r INNER JOIN bmsubcon s ON r.AGENCIA = s.numero WHERE r.ESTADO = 'FINALIZADA' OR r.ESTADO = 'EN CURSO' OR r.ESTADO = 'ACTIVA' ORDER BY r.FECHA_ENTRADA ASC")                
         cursor.execute(sql_1)
-        RESULTADO = cursor.fetchall()
+        RESULTADO = cursor.fetchall() #<--- Lista con los datos de las reservas.
         #---
+        #--- Extracción de los datos de las modificaciones hechas a reservas.
         sql_2 = "SELECT r.ID_RESERVA, r.FECHA_RESERVA, r.FECHA_ENTRADA, r.FECHA_SALIDA,r.ESTADO, d.fecha as fecha_modificación,  d.nota, d.usuario, d.pc FROM foxclea_tareas.AV_RESERVAS r JOIN foxclea_tareas.bmdiarioa d ON r.ID_RESERVA = d.codigo WHERE cast(d.nota as nvarchar) is not null and cast(d.nota as nvarchar) <>'' AND d.fichero = 'RS' AND d.categoria = 'MD' AND r.ESTADO <> 'CANCELADA' AND r.ESTADO <> '' AND r.ESTADO <> 'NOSHOW' AND r.ESTADO <> '' AND r.ESTADO <> 'PENDIENTE' ORDER BY r.FECHA_ENTRADA ASC"
         cursor.execute(sql_2)
-        TEMP_MODIF = cursor.fetchall()
+        TEMP_MODIF = cursor.fetchall() #<--- Lista con los datos respecto a las modificaciones efectuadas en las reservas.
         #---
         #print(PORTAL)
-        print('Correcto #1 -> Extracción de los datos del "portal" a usar.')
+        print('Correcto -> Extracción de los datos del "portal" a usar.')
 #---
 except _mssql.MssqlDatabaseException as e:
-    print('Error #1 -> Número de error: ',e.number,' - ','Severidad: ', e.severity)
+    print('Error -> Número de error: ',e.number,' - ','Severidad: ', e.severity)
 #---
 
+#--- Ciclo para extraer los nombres de los portales a analizar.
 for s_nombre in SETTING:
-    OPTIONS.append(s_nombre[1])
-#----
+    OPTIONS.append(s_nombre[1]) #<--- OPTION toma los nombres de los portales.
+#---
+
+#--- Función para filtrar los resultados por sitio.
 def get_especific_data_site(name_s):
-    DATA = []
+    #---
+    DATA = [] #<--- Lista temporal que almacenara los datos de interes.
+    #---
     for r_data in RESULTADO:
-        #---
+        #--- Filtra solo los datos del portal espeficicado.
         if ((str.lower(name_s) in str.lower(r_data[7])) or (str.lower(name_s) in str.lower(r_data[8]))):
             if (r_data[5] != None): #<--- Si no hay un precio definido, no se toma en concideracion la consulta
                 DATA.append(r_data)
-        
         #---
-    return DATA
-#----
+    return DATA #<--- Devuelve una lista con los datos del portal espeficicado.
+#---
+
+#--- Se filtra los datos modificados de interes, Ex: Fecha de entrada, salida, precio, no_personas, comisión, etc, datos que afecte el precio como tal.
 for m_data in TEMP_MODIF:
     if (('entrada' in str.lower(m_data[6])) or ('salida' in str.lower(m_data[6])) or ('precio' in str.lower(m_data[6])) or ('no_personas' in str.lower(m_data[6])) or ('comision' in str.lower(m_data[6])) or ('limpieza' in str.lower(m_data[6])) or ('energia' in str.lower(m_data[6])) ):
-        RESULT_MODIF.append(m_data)
+        RESULT_MODIF.append(m_data) #<--- Los datos que son de interes se almacenan en la lista de RESULT_MODIF.
+#---
+
 #---
 print("Datos Modificados")
 print("Tamaño = ",len(RESULT_MODIF))
+#---
+
 #------------- Inicia Consulta a BD para Obtener Datos Almacenados. -------------#
+#--- Se obtiene el ultimo registro del portal especificado en la tabla SCR_PORTALES_DETALLES
 def get_last_regis(id_port):
+    #---
     try:
         #---
-        last_result = []
+        last_result = [] #<--- Lista donde se almacena el ultimo resulta de SCR_PORTALES_DETALLES, del portal especificado.
         with connection.cursor() as cursor:
             #--- Consulta especifica
             sql = "SELECT TOP 1 * FROM SCR_PORTALES_DETALLE WHERE ID_PORTAL = %s ORDER BY [ID] DESC "
@@ -206,7 +224,7 @@ def get_last_regis_mod(id_port):
             #--- Consulta especifica
             sql = "SELECT TOP * FROM SCR_PORTALES_MODF WHERE ID_PORTAL = %s ORDER BY [FECHA_MODIFICACION] ASC "
             cursor.execute(sql, id_port)
-            last_result = cursor.fetchone()
+            last_result = cursor.fetchone() #<--- Se obtiene el utlimo registro del portal especigficado.
             #---
             #print(PORTAL)
             print('Correcto -> Extracción de los datos del "portal" a usar.')
@@ -214,132 +232,178 @@ def get_last_regis_mod(id_port):
     except _mssql.MssqlDatabaseException as e:
         print('Error -> Número de error: ',e.number,' - ','Severidad: ', e.severity)
     #---
-    print(last_result)
-    return last_result
-
+    # print(last_result)
+    return last_result #<--- Devuelve los ultimos datos registrados en PORTALES_DETALLES
     #---
 #---
-def get_portal_data(ID,PORTAL,nombre,days_verif):
+
+#------------- Funcion para estimar los calculos mensuales por portal. -------------#
+#---
+def get_portal_data(ID,PORTAL,nombre,days_verif): #<--- ID del portal, Datos del PORTAL, Nombre del PORTAL, días de vrificación del PORTAL
     #---
-    i = 0
-    #--- 
-    #---- Mes y Año de Inicio
-    dates = []
+    i = 0 #<--- variable para iterear.
+    #---    
+    dates = []  #<--- Mes y Año de Inicio
     #---
-    actual_month = (int(today.month) - 1)
+    actual_month = (int(today.month) - 1) #<--- se obtiene el mes actual basado en el dia de hoy.
     #---
-    for i in range(len(PORTAL)):
+
+    #---
+    for i in range(len(PORTAL)): #<--- ciclo por mes.
         #---
-        l_regis = get_last_regis(ID)
-        NUM_RESERVA = None 
-        PRECIO_MEDIA = None
-        PRECIO_MEDIANA = None
-        PRECIO_DESV = None
-        RESERVA_MEDIA = None
-        RESERVA_MODA = []
-        RESERVA_MEDIANA = None 
-        RESERVA_DESV = None
-        ANT_RESERVA_MEDIA = None
-        ANT_RESERVA_MODA = []
-        ANT_RESERVA_MEDIANA = None
-        ANT_RESERVA_DES = None
-        ADULTOS_MEDIA = None
-        ADULTOS_MODA = []
-        NIÑOS_MEDIA = None
-        NIÑOS_MODA = []
-        PRECIOEXTRA_MEDIA = None
-        PRECIOEXTRA_MODA = []
-        PRECIOEXTRA_MEDIANA = None
-        PRECIOEXTRA_DESV = None
-        COMISION_MEDIA = None
-        COMISION_MODA = []
-        COMISION_MEDIANA = None
-        COMISION_DESV = None
-        GASTOENERGIABAS_MEDIA = None
-        GASTOENERGIABAS_MODA = []
-        GASTOENERGIABAS_MEDIANA = None
-        GASTOENERGIABAS_DESV = None
-        GASTOLIMREAL_MEDIA = None
-        GASTOLIMREAL_MODA = []
-        GASTOLIMREAL_MEDIANA = None
-        GASTOLIMREAL_DESV = None
+        l_regis = get_last_regis(ID) #<--- Id del ultimo registro en la tabla SCR_PORTALES_DETALLES.
+        #--- Variables de los datos estadisticos a calcular.
+        #--- Precio
+        NUM_RESERVA = None #<--- Cantidad de reservas por mes.
+        PRECIO_MEDIA = None #<--- Precio medio por noche.
+        PRECIO_MEDIANA = None #<--- Mediana del precio por noche.
+        PRECIO_DESV = None #<--- Desviacion estandar del precio.
+        #--- Tiempo de reserva.
+        RESERVA_MEDIA = None  #<--- Media del tiempo de reserva.
+        RESERVA_MODA = []  #<--- Tiempos de reservas mas comunes.
+        RESERVA_MEDIANA = None  #<--- Mediana de lo tiempos de reserva.
+        RESERVA_DESV = None  #<--- Desviación estandar del tiempo de reserva.
+        #--- Anticipo de reserva.
+        ANT_RESERVA_MEDIA = None #<--- Media del tiempo de anticipacion de una reserva.
+        ANT_RESERVA_MODA = [] #<--- Moda de los tiempos de anticipación de una reserva.
+        ANT_RESERVA_MEDIANA = None #<--- Mediana de los tiempos de anticiapación de una reserva.
+        ANT_RESERVA_DES = None #<--- Desviación estandar de los tiempos de anticipación de una reerva.
+        #--- Adultos.
+        ADULTOS_MEDIA = None #<--- Media de adultos por mes.
+        ADULTOS_MODA = [] #<--- Moda de la cantidad mas comun de adultos por reserva.
+        #--- Ninos.
+        NIÑOS_MEDIA = None #<--- Media de los ninos por mes.
+        NIÑOS_MODA = [] #<--- Moda de la ninos por mes.
+        #--- Precio Extra.
+        PRECIOEXTRA_MEDIA = None #<--- Media del precio extra por reserva en el mes.
+        PRECIOEXTRA_MODA = [] #<--- Moda del precio extra por reserva en el mes.
+        PRECIOEXTRA_MEDIANA = None #<--- Mediana del precio extra por reserva en el mes.
+        PRECIOEXTRA_DESV = None #<--- Desviación estandar del precio extra por reserva en el mes.
+        #--- Comisión.
+        COMISION_MEDIA = None #<--- Media de la comisión por reserva en el mes.
+        COMISION_MODA = [] #<--- Moda de la comisión por reserva en el mes.
+        COMISION_MEDIANA = None #<--- Mediana de la comisión por reserva en el mes.
+        COMISION_DESV = None #<--- Desviación estandar de la comision por reserva al mes.
+        #--- Gasto de energía.
+        GASTOENERGIABAS_MEDIA = None #<--- Media del gasto de energia por reserva.
+        GASTOENERGIABAS_MODA = [] #<--- Moda del gasto de energia por reserva.
+        GASTOENERGIABAS_MEDIANA = None #<--- Mediana del gasto en energía por reserva.
+        GASTOENERGIABAS_DESV = None #<--- Desviación estandar del gasto de energia por reserva
+        #--- Gasto de limpieza.
+        GASTOLIMREAL_MEDIA = None #<--- Media de gastos de limpieza por reserva en el mes.
+        GASTOLIMREAL_MODA = [] #<--- Moda del gasto de limpieza por reserva.
+        GASTOLIMREAL_MEDIANA = None #<--- Mediana del gasto de limpieza por reserva.
+        GASTOLIMREAL_DESV = None #<--- Desviación estandar del gasto de limpieza por reserva.
         #---
-        allow = False
-        end_ite = False
-        UPDATE_VALUE = False
+        allow = False #<-- Variable para poder realizar verificaciones dentro del rango de días asignados.
+        end_ite = False #<--- Variable para finalizar las iteraciones en caso que no sea necesario calcular nada.
+        UPDATE_VALUE = False #<--- Variable para permitir actualizaciones de los registro, en caso contrario solo se hara un insert.
         #---
-        if (l_regis == None):
+
+        #--- Se verifican los datos registrados en la tabla SCR_PORTALES_DETALLE
+        if (l_regis == None): #<--- En caso que no haya ningun registro.
             #---
-            dates = get_init_date(PORTAL)
-            end_ite = False 
+            dates = get_init_date(PORTAL) #<--- se asigna la fecha inicial basado en la fecha del primer registro del portal.
+            end_ite = False #<--- Se le dal Fal a end_int para que no termine la iteración.
+            #---
             print('No hay registros anteriores')
         #---
-        elif (l_regis[2] == actual_month and l_regis[3] == today.year):
-            td_month = actual_month + 1            
-            date_init_verif =  datetime.datetime.strptime(('01' + str(td_month) + str(today.year)), "%d%m%Y").date()
-            date_end_verif =  date_init_verif + datetime.timedelta(days=days_verif)
-            print('Fecha Fin: ',date_end_verif)
+        elif (l_regis[2] == actual_month and l_regis[3] == today.year): #<--- En caso que si haya registros y estos sean igual al mes pasado y al anio actual.
+        #---
+            td_month = actual_month + 1 #<--- Se le asigna el mes actual.           
+            date_init_verif =  datetime.datetime.strptime(('01' + str(td_month) + str(today.year)), "%d%m%Y").date() #<--- Se fija el primer dia del mes actual.
+            date_end_verif =  date_init_verif + datetime.timedelta(days=days_verif) #<--- Se calcula la fecha limite basado en el rango de días maximo de la tabla SCR_PORTALES.
+            #---
+            print('Fecha Fin: ',date_end_verif) 
             print('Fecha Inicio: ',today)
             #---
-            if (today < date_end_verif):
-                allow = True
-                end_ite = False                                 
-                dates.append(l_regis[2])
-                dates.append(l_regis[3])
-                #l_regis[44] Fecha de modificacion del registro
-            else:
-                allow = False
-                end_ite = True   
+            if (today < date_end_verif): #<--- Se compara si el día de hoy es menos al la fecha limite, si es asi.
+                allow = True #<--- Para permitir recalcular los datos del ultimo mes.
+                end_ite = False #<--- Para continuar con la iteración.  
+                #---                             
+                dates.append(l_regis[2]) #<--- se asigna el mes del ultimo registro.
+                dates.append(l_regis[3]) #<--- se asigna el anio del ultimo registro.
+            #---
+            else: #<--- En caso que la fecha actual se mayor a la fecha maxima de verificación.
+                allow = False #<--- No se necesita recalcular los datos del ulimo mes.
+                end_ite = True #<--- Para permitir finalizar la iteración.
         #---
-        elif (l_regis[3] < today.year):
-            end_ite = False 
-            if (l_regis[2] == 12):
-                dates.append(1)
-                dates.append(l_regis[3] + 1)
-            else:                
-                dates.append( l_regis[2] + 1)
-                dates.append(l_regis[3])
+        elif (l_regis[3] < today.year): #<--- En caso de que el ultimo registro sea de anios anteriores al actual.
         #---
-        elif (l_regis[2] < actual_month and l_regis[3] == today.year):
-            end_ite = False 
-            if (l_regis[2] == 12):
-                dates.append(1)
-                dates.append(l_regis[3] + 1)
-            else:                
-                dates.append(l_regis[2] + 1)
-                dates.append(l_regis[3])
+            end_ite = False #<--- Para continuar la iteración.
+            #---
+            if (l_regis[2] == 12): #<--- En caso que el mes sea igual a 12.
+                dates.append(1) #<--- El mes se le asigna 1 (enero).
+                dates.append(l_regis[3] + 1) #<--- Se le suma una al anio.
+            #---
+            else: #<--- En caso contrario solo:                
+                dates.append( l_regis[2] + 1) #<--- se le suma uno al ultimo mes registrado.
+                dates.append(l_regis[3]) #<--- Se le asigna el valor del anio del ultimo registro.
+        #---
+        elif (l_regis[2] < actual_month and l_regis[3] == today.year): #<--- En caso que el mes sea menor al mes actual y el anio igual al actual.
+        #---
+            end_ite = False #<--- Para continuar la iteración.
+            #---
+            if (l_regis[2] == 12): #<--- En caso que el mes sea igual a 12.
+                dates.append(1) #<--- El mes se le asigna 1 (enero).
+                dates.append(l_regis[3] + 1) #<--- Se le suma una al anio.
+            #---
+            else: #<--- En caso contrario solo:                    
+                dates.append(l_regis[2] + 1) #<--- se le suma uno al ultimo mes registrado.
+                dates.append(l_regis[3]) #<--- Se le asigna el valor del anio del ultimo registro.
+            #---
                         
-        #--
-        if (end_ite == True):
-            break     
-        data = get_data_month(PORTAL, dates[0], dates[1])
-        MONTH_DATA_UPD = []
+        #-------
+        if (end_ite == True): #<--- Si la variable es igual a True, se finaliza la iteración.
+            break
         #---
-        for data_check in data:
+
+        #---     
+        data = get_data_month(PORTAL, dates[0], dates[1]) #<--- Se saca la información de un mes y anio especifico.
+        MONTH_DATA_UPD = [] #<--- se limpia la lista donde se almacenaran los datos de la ultima modificacion de la ultima reserva del mes.
+        #---
+
+        #---
+        for data_check in data: #<--- Ciclo para obtener los datos de la ultima modificación de la ultima reserva.
+        #---
             for data_modf in RESULT_MODIF:
+                #---
                 if (data_check[0] == data_modf[0]):
-                    MONTH_DATA_UPD = data_modf
+                    MONTH_DATA_UPD = data_modf #<--- se deja los datos de la ultima modiciación.
         #---
-        if (len(MONTH_DATA_UPD) == 0):
-            i = 0
-            while i <= 9:
+
+        #---
+        if (len(MONTH_DATA_UPD) == 0): #<--- Si no hay ninguna modificacion (datos en la lista MONTH_DATA_UPD)
+        #---
+            i = 0 
+            #---
+            while i <= 9: #<--- se le agregan 9 Nones a la lista para evitar un error en la inserción.
                 MONTH_DATA_UPD.append(None)
                 i += 1
-        elif (allow == True):
+            #---
+        #---
+        elif (allow == True): #<--- En caso que si hayan datos y que allo sea verdadero:
+            #---
             print('FECHA DE REGISTRO = ',l_regis[44].date(),'--- FECHA DE NUEVO REGISTRO = ',MONTH_DATA_UPD[5].date())
-            if (l_regis[44].date() < MONTH_DATA_UPD[5].date()):
-                UPDATE_VALUE = True
+            #---
+            if (l_regis[44].date() < MONTH_DATA_UPD[5].date()): #<--- Se compara a fecha de la ultima modificación en el registro de SCR_PORTALES_DETALLES con la fecha de la ultima modificacion en la lista MONTHDATA_UPD, en caso de se mayor esta ultima:
+                UPDATE_VALUE = True #<--- Permite la recalculación y actualizacion del ultimo registro.
                 allow = True
-            else:
+            #---
+            else: #<--- en caso que sean iguales o inferior.
                 allow = False
-                UPDATE_VALUE = False
-                end_ite = True
-                
-        if (allow == False and end_ite == True):
+                UPDATE_VALUE = False #<--- No se permite actualizar.
+                end_ite = True #<--- Termina la iteración.
+            #---
+
+        #---   
+        if (allow == False and end_ite == True): #<--- en caso de que end_ite sea true, se finaliza la iteración.
             break
         #---
         print('-------------MODIFICACIÓN----------------')
         print(MONTH_DATA_UPD)
+        #---
+        
         #------------------- PRECIO
         #--- Media.
         print('-------------------------------------------------')
