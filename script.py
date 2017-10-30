@@ -35,6 +35,32 @@ RESULT_MODIF = [] #<--- Lista donde se filtraran las modificaciones de interes.
 MONTH_DATA_UPD = [] #<--- Lista donde se almacena los datos de la ultima modificación del mes.
 #----
 #------------- Inicio de Funciones. -------------#
+
+
+def change_State(state):
+    #---
+    td = (datetime.datetime.now())  # <--- Fecha del dia de hoy.
+    #---
+    try:
+        #---
+        with connection.cursor() as cursor:
+            #---
+            sql = "UPDATE SCR_ESTADO SET ESTADO = %s, FECHA = %s WHERE ID_PORTAL = %s"
+            cursor.execute(sql, (state, today, 4))
+        connection.commit()
+        print("------ Se ha realizado el cambio de estado de la consulta.")
+    #---
+    except _mssql.MssqlDatabaseException as e:
+        #---
+        print('Error -> Número de error: ', e.number,
+              ' - ', 'Severidad: ', e.severity)
+    #---
+    if (state == True):
+        return "El Script se ejecuto correctamente. Se Ha modificado el estado de ejecución del script."
+    else:
+        return "El Script no se termino de ejecutar. Se Ha modificado el estado de ejecución del script."
+#---
+print(change_State(False))  # --- Se cambia el estado de la pagina a Falso.
 #--- Suma Meses a una Fecha
 def add_months(sourcedate,months):
     #---
@@ -743,5 +769,6 @@ for s_item in SETTING:
     else:
         print('No Hay Datos de ', s_item[1],)
     time.sleep(5)
+    print(change_State(True))
 #---
-
+print(change_State(True))
