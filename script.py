@@ -46,7 +46,7 @@ def change_State(state):
         with connection.cursor() as cursor:
             #---
             sql = "UPDATE SCR_ESTADO SET ESTADO = %s, FECHA = %s WHERE ID_PORTAL = %s"
-            cursor.execute(sql, (state, today, 10))
+            cursor.execute(sql, (state, td, 10))
         connection.commit()
         print("------ Se ha realizado el cambio de estado de la consulta.")
     #---
